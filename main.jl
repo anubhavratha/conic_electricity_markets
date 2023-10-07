@@ -2,12 +2,16 @@ using LinearAlgebra,DataFrames,CSV,Distributions,StatsBase,SparseArrays
 using JuMP,Ipopt,Mosek,MosekTools
 using StatsPlots,LaTeXStrings,ColorSchemes
 
-include("helpers.jl")
-include("load_data.jl")
-include("socp_mc.jl")
-include("lp_mc_twostage.jl")
-include("lp_mc_scenarios.jl")
-include("eval_econ_props.jl")
+# Include helpers
+include("src/helpers.jl")
+include("src/load_data.jl")
+include("src/eval_econ_props.jl")
+
+# Include models
+include("src/models/socp_mc.jl")
+include("src/models/lp_mc_twostage.jl")
+include("src/models/lp_mc_scenarios.jl")
+
 
 settings = Dict(:Nsteps         => 20,      #Steps for piecewise linearization of quadratic cost
                 :ε              => 0.05,    #chance constraints joint violation probability
