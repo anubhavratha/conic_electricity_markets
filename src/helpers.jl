@@ -1,14 +1,8 @@
 #auxiliary functions to return Cholesky decomposition matrices of various dimensions for CC reformulation
-
-## Cholesky approach
 returnblks(Σ,t,Nw)          = Matrix(cholesky(Σ[(t-1)*Nw+1 : t*Nw, (t-1)*Nw+1 : t*Nw]).L)
 returnblksramping(Σ,t,Nw)   = Matrix(cholesky(Σ[(t-2)*Nw+1 : t*Nw, (t-2)*Nw+1 : t*Nw]).L)
 returnblksstorage(Σ,t,Nw)   = Matrix(cholesky(Σ[1:t*Nw, 1:t*Nw]).L)
 
-## Square root approach
-# returnblks(Σ,t,Nw)          = sqrt((Σ[(t-1)*Nw+1 : t*Nw, (t-1)*Nw+1 : t*Nw]))
-# returnblksramping(Σ,t,Nw)   = sqrt(Σ[(t-2)*Nw+1 : t*Nw, (t-2)*Nw+1 : t*Nw])
-# returnblksstorage(Σ,t,Nw)   = sqrt(Σ[1:t*Nw, 1:t*Nw])
 
 #auxiliary functions to give sending and receiving nodes for a given line
 ns(l) = networkdata[:lines][l].b_f
@@ -123,11 +117,6 @@ function prep_outofsample_data(settings,winddata)
         end
         Σ_t   = cor2cov(C_t, σ_t)
         ξ_oos[1:Nw,:,t] = rand(MvNormal(zeros(Nw),Σ_t),ST)
-        # for t in 1:T
-        #     for k in 1:Nw
-        #         ξ_oos[k,:,t] = 0.25*winddata[:ŵ][k,t] .* (-0.5 .+ rand(Beta(2,5),(1,ST)))
-        #     end
-        # end
     end
     oosdata = Dict(:ξ_oos => ξ_oos, :S => ST)
     return oosdata
@@ -165,68 +154,4 @@ function pwl_cost_approx(settings,networkdata,g,s)
         @warn("something is wrong with piecewise linearization of costs")
     end
     return cost_coeffs
-end
-
-
-function kernel_unbiased_2d(xvar,yvar,xgrid,ygrid)
-    xobs = vec([xvar yvar])
-    xpred = vec([xgrid ygrid])
-    dim_ker = length(xobs)
-    σ_k = 0.1
-    H_matrix = diagm(σ_k .* ones(dim_ker))
-    return (2π)^(-dim_ker/2) * exp(-0.5 * (xobs - xpred)'*inv(H_matrix)*(xobs - xpred))
-end
-
-function kernel_biased_2d(xvar,yvar,ntype,xgrid,ygrid)
-    xobs = vec([xvar yvar])
-    xpred = vec([xgrid ygrid])
-    dim_ker = length(xobs)
-    σ_k = 2
-    if     ntype == 1 #nodes along a horizontal pipeline
-        H_matrix = diagm([σ_k, 0.5*σ_k])
-    elseif ntype == 2 #nodes along a vertical pipeline
-        H_matrix = diagm([0.5*σ_k, σ_k])
-    elseif ntype == 3 #nodes along a acute angle w.r.t horizontal
-        H_matrix = [0.4 σ_k; σ_k 0.4]
-    elseif ntype == 4 # nodes along a obtuse angle w.r.t horizontal
-        H_matrix = [σ_k 0.05; 0.05 2*σ_k]
-    else
-        H_matrix = diagm([σ_k, σ_k])
-    end
-    return (2π)^(-dim_ker/2) * exp(-0.5 * (xobs - xpred)'*inv(H_matrix)*(xobs - xpred))
-end
-
-
-
-function prepare_kde_data(kde_settings)
-    rawdata=DataFrame(CSV.File("results/R_files/out_data_24node.csv"))
-
-    xvar = rawdata[!, :x]
-    yvar = rawdata[!, :y]
-    ntype = rawdata[!, :ntype]
-    fval = rawdata[!, :el_price]
-
-    gridvals=kde_settings[:gridsize]
-    xgrid = Array(0:gridvals:18)
-    ygrid = Array(0:gridvals:30)
-
-    kerData = DataFrame(xval=Any[],yval=Any[],fgval=Any[])
-    fgval=zeros(length(ygrid))
-    for gx in 1:length(xgrid)
-        for gy in 1:length(ygrid)
-            fgval_temp = zeros(length(xvar))
-            ker=zeros(length(xvar))
-            for d in 1:length(xvar)
-                if kde_settings[:bias] == 1
-                    ker[d] = kernel_biased_2d(xvar[d],yvar[d],ntype[d],xgrid[gx],ygrid[gy])
-                elseif kde_settings[:bias] == 0
-                    ker[d] = kernel_unbiased_2d(xvar[d],yvar[d],xgrid[gx],ygrid[gy])
-                end
-                fgval_temp[d] = fval[d] * ker[d]
-            end
-            fgval[gy] = sum(fgval_temp)
-            push!(kerData,[xgrid[gx],ygrid[gy],fgval[gy]])
-        end
-    end
-    return kerData
 end

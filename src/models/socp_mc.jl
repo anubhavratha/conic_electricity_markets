@@ -284,8 +284,8 @@ function run_sto_SOCP_oos_reopt(settings,networkdata,winddata,sol_sto_SOCP,oosda
     @constraint(m, esr_dis_lim[s=1:Ns,  t=1:settings[:T]], sol_sto_SOCP[:b][s,t] + r_b[s,t] >= - 1/networkdata[:esrs][s].η_c*networkdata[:esrs][s].P̅c)
     @constraint(m, esr_spill_up[s=1:Ns, t=1:settings[:T]], networkdata[:esrs][s].E𝟶 - sum(sol_sto_SOCP[:b][s,t̂] + r_b[s,t̂] for t̂ in 1:t) <= networkdata[:esrs][s].s̅)
     @constraint(m, esr_spill_dn[s=1:Ns, t=1:settings[:T]], networkdata[:esrs][s].E𝟶 - sum(sol_sto_SOCP[:b][s,t̂] + r_b[s,t̂] for t̂ in 1:t) >= networkdata[:esrs][s].s̲)
-    #@constraint(m, esr_eod_max[s=1:Ns,  t=settings[:T]],   networkdata[:esrs][s].E𝟶 - sum(sol_sto_SOCP[:b][s,t̂] + r_b[s,t̂] for t̂ in 1:t) <= networkdata[:esrs][s].E𝟶 + networkdata[:esrs][s].B_s)
-    #@constraint(m, esr_eod_min[s=1:Ns,  t=settings[:T]],   networkdata[:esrs][s].E𝟶 - sum(sol_sto_SOCP[:b][s,t̂] + r_b[s,t̂] for t̂ in 1:t) >= networkdata[:esrs][s].E𝟶 - networkdata[:esrs][s].B_s)
+    @constraint(m, esr_eod_max[s=1:Ns,  t=settings[:T]],   networkdata[:esrs][s].E𝟶 - sum(sol_sto_SOCP[:b][s,t̂] + r_b[s,t̂] for t̂ in 1:t) <= networkdata[:esrs][s].E𝟶 + networkdata[:esrs][s].B_s)
+    @constraint(m, esr_eod_min[s=1:Ns,  t=settings[:T]],   networkdata[:esrs][s].E𝟶 - sum(sol_sto_SOCP[:b][s,t̂] + r_b[s,t̂] for t̂ in 1:t) >= networkdata[:esrs][s].E𝟶 - networkdata[:esrs][s].B_s)
 
     #load shedding and wind spillage limits
     @constraint(m, shed_lims[d=1:length(networkdata[:buses]), t=1:settings[:T]], 0 <=  p_shed[d,t]  <= loaddata[:node_loads][d,t])

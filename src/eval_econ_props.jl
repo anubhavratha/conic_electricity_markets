@@ -153,33 +153,6 @@ function process_esr_outcomes(settings,networkdata,sol)
     return esr_outcomes
 end
 
-# p1_esr = groupedbar(["S1","S1","S2","S2","S3","S3"],
-#             [esr_outcomes_SOCP[:Rev_esr] esr_outcomes_LP[:Rev_esr]],
-#             label=["SOCP" "LP"],
-#             xlabel = "ESR #",
-#             ylabel="Revenues",
-#             title="EOD Revenues: ESRs",
-#             legend=:outerright)
-#
-# p2_esr = groupedbar(["S1","S1","S2","S2","S3","S3"],
-#         [esr_outcomes_SOCP[:Cos_esr] esr_outcomes_LP[:Cos_esr]],
-#         label=["SOCP" "LP"],
-#         xlabel = "ESR #",
-#         ylabel="Costs",
-#         title="EOD Costs: ESRs",
-#         legend=:outerright)
-#
-# p3_esr = groupedbar(["S1","S1","S2","S2","S3","S3"],
-#             [esr_outcomes_SOCP[:Pro_esr] esr_outcomes_LP[:Pro_esr]],
-#             label=["SOCP" "LP"],
-#             xlabel = "ESR #",
-#             ylabel="Profits",
-#             title="EOD Profits: ESRs",
-#             legend=:outerright)
-#
-# plot(p1_esr,p2_esr,p3_esr, layout = (3,1))
-# savefig("results/plots/cost_recovery_LP_SOCP.pdf")
-
 """ REVENUE ADEQUACY """
 function check_revenue_adequacy(settings,networkdata,winddata,loaddata,sol)
     """ Checking revenue adequacy of the market operator """
