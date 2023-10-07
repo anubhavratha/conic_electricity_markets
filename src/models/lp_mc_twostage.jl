@@ -6,7 +6,6 @@ function det_lp_da_mc(settings,networkdata,winddata,loaddata)
     Ns = length(networkdata[:esrs])
 
     m = Model(optimizer_with_attributes(Mosek.Optimizer, "LOG" => 0, "QUIET" => true))
-    #m = Model(optimizer_with_attributes(Ipopt.Optimizer))
 
     # ---- DEFINE Primal VARIABLES ------ #
     #For power and participation factor

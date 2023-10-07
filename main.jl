@@ -1,5 +1,5 @@
 using LinearAlgebra,DataFrames,CSV,Distributions,StatsBase,SparseArrays
-using JuMP,Ipopt,Mosek,MosekTools
+using JuMP,Mosek,MosekTools
 using StatsPlots,LaTeXStrings,ColorSchemes
 
 # Include helpers
@@ -13,10 +13,19 @@ include("src/models/lp_mc_twostage.jl")
 include("src/models/lp_mc_scenarios.jl")
 
 
+# Setup results folders and subfolders and create them
+R_FILES_DIR_NAME = "results/r_files/"
+mkpath(R_FILES_DIR_NAME)
+RESULTS_DATA_DIR_NAME = "results/data/"
+mkpath(RESULTS_DATA_DIR_NAME)
+RESULTS_PLOTS_DIR_NAME = "results/plots/"
+mkpath(RESULTS_PLOTS_DIR_NAME)
+
+
 settings = Dict(:Nsteps         => 20,      #Steps for piecewise linearization of quadratic cost
                 :ε              => 0.05,    #chance constraints joint violation probability
                 :T              => 24,      #market clearing periods
-                :S              => 100,     #:S = zero => scenario numbers from CC feasibility requirement, S = num scenarios
+                :S              => 2,     #:S = zero => scenario numbers from CC feasibility requirement, S = num scenarios
                 :det            => false,   #det = true => risk parameter = 0
                 :drcc           => false,   #drcc = true => distributionally robust cc modeling. ε must be raised for feasibility.
                 :histdata       => false,   #histdata = true => estimation of moments from historical data
@@ -71,8 +80,8 @@ for scen in 1:winddata[:S]
 end
 #@show res_realtime_det_LP
 println("Deterministic LP Cost => ", (mean(res_realtime_det_LP[!, :cost_act]) + sol_det_LP_DA[:cost_res_gen] + sol_det_LP_DA[:cost_res_esr])/1e3)
-gen_outcomes_det_LP = process_gen_outcomes(settings,networkdata,sol_det_LP_RT)
-esr_outcomes_det_LP = process_esr_outcomes(settings,networkdata,sol_det_LP_RT)
+gen_outcomes_det_LP = process_gen_outcomes(settings,networkdata,sol_det_LP_DA)
+esr_outcomes_det_LP = process_esr_outcomes(settings,networkdata,sol_det_LP_DA)
 
 #LP market clearing -- Option 2: Stochastic LP
 sol_sto_LP          = sto_lp_mc(settings,networkdata,winddata,loaddata)
@@ -110,44 +119,44 @@ for n in 1:length(networkdata[:buses])
     hour=23
     push!(out_data, [n,xy_data[!,:x][n],xy_data[!,:y][n], xy_data[!, :ntype][n], sol_sto_SOCP[:Π][:Π_E][n,hour]])
 end
-CSV.write("results/R_files/out_data_24node.csv", out_data)
+CSV.write(joinpath(R_FILES_DIR_NAME, "out_data_24node.csv"), out_data)
 
 kde_settings = Dict(:gridsize => 0.1, :bias => 1)
 kerData = prepare_kde_data(kde_settings)
-CSV.write("results/R_files/price_kernel_plot.csv", kerData)
+CSV.write(joinpath(R_FILES_DIR_NAME, "price_kernel_plot.csv"), kerData)
 
 
 
 ## - Data for In-sample Day-ahead Table --- ##
 #No bottleneck case
-# tabledata = DataFrame(Model=Any[],ExpCost=Any[], CompTime=Any[], CostEner=Any[], CostFlex=Any[], GensMW=Any[], ESRChgMW=Any[], ESRDisMW=Any[])
-# push!(tabledata,["Mcc",
-#                 sol_sto_SOCP[:cost],
-#                 sol_sto_SOCP[:solvetime],
-#                 sol_sto_SOCP[:cost_ener],
-#                 sol_sto_SOCP[:cost_flex],
-#                 sum(sol_sto_SOCP[:p]),
-#                 sum(sol_sto_SOCP[:b][sol_sto_SOCP[:b] .> 0]),
-#                 sum(sol_sto_SOCP[:b][sol_sto_SOCP[:b] .< 0])])
-#
-# push!(tabledata,["R1",
-#                 sol_det_LP_DA[:cost],
-#                 sol_det_LP_DA[:solvetime],
-#                 sol_det_LP_DA[:cost_res_gen],
-#                 sol_det_LP_DA[:cost_res_esr],
-#                 sum(sol_det_LP_DA[:p]),
-#                 sum(sol_det_LP_DA[:b][sol_det_LP_DA[:b] .> 0]),
-#                 sum(sol_det_LP_DA[:b][sol_det_LP_DA[:b] .< 0])])
-#
-# push!(tabledata,["R2",
-#                 sol_sto_LP[:cost],
-#                 sol_sto_LP[:solvetime],
-#                 sol_sto_LP[:cost_ener],
-#                 sol_sto_LP[:cost_flex],
-#                 sum(sol_sto_LP[:p_da]),
-#                 sum(sol_sto_LP[:b_da][sol_sto_LP[:b_da] .> 0]),
-#                 sum(sol_sto_LP[:b_da][sol_sto_LP[:b_da] .< 0])])
+tabledata = DataFrame(Model=Any[],ExpCost=Any[], CompTime=Any[], CostEner=Any[], CostFlex=Any[], GensMW=Any[], ESRChgMW=Any[], ESRDisMW=Any[])
+push!(tabledata,["Mcc",
+                sol_sto_SOCP[:cost],
+                sol_sto_SOCP[:solvetime],
+                sol_sto_SOCP[:cost_ener],
+                sol_sto_SOCP[:cost_flex],
+                sum(sol_sto_SOCP[:p]),
+                sum(sol_sto_SOCP[:b][sol_sto_SOCP[:b] .> 0]),
+                sum(sol_sto_SOCP[:b][sol_sto_SOCP[:b] .< 0])])
 
+push!(tabledata,["R1",
+                sol_det_LP_DA[:cost],
+                sol_det_LP_DA[:solvetime],
+                sol_det_LP_DA[:cost_res_gen],
+                sol_det_LP_DA[:cost_res_esr],
+                sum(sol_det_LP_DA[:p]),
+                sum(sol_det_LP_DA[:b][sol_det_LP_DA[:b] .> 0]),
+                sum(sol_det_LP_DA[:b][sol_det_LP_DA[:b] .< 0])])
+
+push!(tabledata,["R2",
+                sol_sto_LP[:cost],
+                sol_sto_LP[:solvetime],
+                sol_sto_LP[:cost_ener],
+                sol_sto_LP[:cost_flex],
+                sum(sol_sto_LP[:p_da]),
+                sum(sol_sto_LP[:b_da][sol_sto_LP[:b_da] .> 0]),
+                sum(sol_sto_LP[:b_da][sol_sto_LP[:b_da] .< 0])])
+@show tabledata
 
 ## Export Data for Mcc -> compare bottlenecks and no bottlenecks
 st = 4
@@ -174,19 +183,19 @@ socp_gen_adj_poli_no_bottlenecks  = DataFrame([st:en sol_sto_SOCP[:α][:,st:en]'
 socp_gen_nom_disp_no_bottlenecks  = DataFrame([st:en sol_sto_SOCP[:p][:,st:en]'], [:hours, :F1, :F2, :F3, :F4, :F5, :F6, :F7, :F8, :F9, :F10, :F11, :F12])
 socp_esr_adj_poli_no_bottlenecks  = DataFrame([st:en sol_sto_SOCP[:γ][:,st:en]'], [:hours, :S1, :S2, :S3])
 socp_esr_nom_disp_no_bottlenecks  = DataFrame([st:en sol_sto_SOCP[:b][:,st:en]'], [:hours, :S1, :S2, :S3])
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_gen_adj_poli_no_bottlenecks.csv", socp_gen_adj_poli_no_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_gen_nom_disp_no_bottlenecks.csv", socp_gen_nom_disp_no_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_adj_poli_no_bottlenecks.csv", socp_esr_adj_poli_no_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_nom_disp_no_bottlenecks.csv", socp_esr_nom_disp_no_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME,"socp_gen_adj_poli_no_bottlenecks.csv"), socp_gen_adj_poli_no_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_gen_nom_disp_no_bottlenecks.csv"), socp_gen_nom_disp_no_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_esr_adj_poli_no_bottlenecks.csv"), socp_esr_adj_poli_no_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_esr_nom_disp_no_bottlenecks.csv"), socp_esr_nom_disp_no_bottlenecks)
 
 socp_gen_flex_payment_no_bottlenecks = DataFrame([st:en flex_gens_payoff[:flex_pay][:,st:en]'],         [:hours, :F1, :F2, :F3, :F4, :F5, :F6, :F7, :F8, :F9, :F10, :F11, :F12])
 socp_gen_flex_payrate_no_bottlenecks = DataFrame([st:en flex_gens_payoff[:flex_pay_rate][:,st:en]'],    [:hours, :F1, :F2, :F3, :F4, :F5, :F6, :F7, :F8, :F9, :F10, :F11, :F12])
 socp_esr_flex_payment_no_bottlenecks = DataFrame([st:en flex_esrs_payoff[:flex_pay][:,st:en]'],         [:hours, :S1, :S2, :S3])
 socp_esr_flex_payrate_no_bottlenecks = DataFrame([st:en flex_esrs_payoff[:flex_pay_rate][:,st:en]'],    [:hours, :S1, :S2, :S3])
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_gen_flex_payment_no_bottlenecks.csv", socp_gen_flex_payment_no_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_gen_flex_payrate_no_bottlenecks.csv", socp_gen_flex_payrate_no_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_flex_payment_no_bottlenecks.csv", socp_esr_flex_payment_no_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_flex_payrate_no_bottlenecks.csv", socp_esr_flex_payrate_no_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_gen_flex_payment_no_bottlenecks.csv"), socp_gen_flex_payment_no_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_gen_flex_payrate_no_bottlenecks.csv"), socp_gen_flex_payrate_no_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_esr_flex_payment_no_bottlenecks.csv"), socp_esr_flex_payment_no_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_esr_flex_payrate_no_bottlenecks.csv"), socp_esr_flex_payrate_no_bottlenecks)
 
 
 
@@ -210,20 +219,20 @@ socp_gen_adj_poli_with_bottlenecks  = DataFrame([st:en sol_sto_SOCP[:α][:,st:en
 socp_gen_nom_disp_with_bottlenecks  = DataFrame([st:en sol_sto_SOCP[:p][:,st:en]'], [:hours, :F1, :F2, :F3, :F4, :F5, :F6, :F7, :F8, :F9, :F10, :F11, :F12])
 socp_esr_adj_poli_with_bottlenecks  = DataFrame([st:en sol_sto_SOCP[:γ][:,st:en]'], [:hours, :S1, :S2, :S3])
 socp_esr_nom_disp_with_bottlenecks  = DataFrame([st:en sol_sto_SOCP[:b][:,st:en]'], [:hours, :S1, :S2, :S3])
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_gen_adj_poli_with_bottlenecks.csv", socp_gen_adj_poli_with_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_gen_nom_disp_with_bottlenecks.csv", socp_gen_nom_disp_with_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_adj_poli_with_bottlenecks.csv", socp_esr_adj_poli_with_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_nom_disp_with_bottlenecks.csv", socp_esr_nom_disp_with_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_gen_adj_poli_with_bottlenecks.csv"), socp_gen_adj_poli_with_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_gen_nom_disp_with_bottlenecks.csv"), socp_gen_nom_disp_with_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_esr_adj_poli_with_bottlenecks.csv"), socp_esr_adj_poli_with_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_esr_nom_disp_with_bottlenecks.csv"), socp_esr_nom_disp_with_bottlenecks)
 
 
 socp_gen_flex_payment_with_bottlenecks = DataFrame([st:en flex_gens_payoff[:flex_pay][:,st:en]'],         [:hours, :F1, :F2, :F3, :F4, :F5, :F6, :F7, :F8, :F9, :F10, :F11, :F12])
 socp_gen_flex_payrate_with_bottlenecks = DataFrame([st:en flex_gens_payoff[:flex_pay_rate][:,st:en]'],    [:hours, :F1, :F2, :F3, :F4, :F5, :F6, :F7, :F8, :F9, :F10, :F11, :F12])
 socp_esr_flex_payment_with_bottlenecks = DataFrame([st:en flex_esrs_payoff[:flex_pay][:,st:en]'],         [:hours, :S1, :S2, :S3])
 socp_esr_flex_payrate_with_bottlenecks = DataFrame([st:en flex_esrs_payoff[:flex_pay_rate][:,st:en]'],    [:hours, :S1, :S2, :S3])
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_gen_flex_payment_with_bottlenecks.csv", socp_gen_flex_payment_with_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_gen_flex_payrate_with_bottlenecks.csv", socp_gen_flex_payrate_with_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_flex_payment_with_bottlenecks.csv", socp_esr_flex_payment_with_bottlenecks)
-CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_flex_payrate_with_bottlenecks.csv", socp_esr_flex_payrate_with_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_gen_flex_payment_with_bottlenecks.csv"), socp_gen_flex_payment_with_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_gen_flex_payrate_with_bottlenecks.csv"), socp_gen_flex_payrate_with_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_esr_flex_payment_with_bottlenecks.csv"), socp_esr_flex_payment_with_bottlenecks)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "socp_esr_flex_payrate_with_bottlenecks.csv"), socp_esr_flex_payrate_with_bottlenecks)
 
 
 
@@ -232,11 +241,11 @@ R1data = []
 for t in 1:settings[:T]
     push!(R1data, sum(networkdata[:gens][g].c_r * sol_det_LP_DA[:r_p][g,t] for g in 1:length(networkdata[:gens]))
                  +sum(networkdata[:esrs][s].c_r * sol_det_LP_DA[:r_b][s,t] for s in 1:length(networkdata[:esrs])))
-#    push!(R2data, ((1/winddata[:S])*(sum(sum(sum(pwl_cost_approx(settings,networkdata,g,0)[:slopes] .* sol_sto_LP[:p_rt][g,:,t,scen]) for g in 1:length(networkdata[:gens])) for scen in 1:winddata[:S]))
-#                   + (1/winddata[:S])*sum(sum(networkdata[:esrs][s].c_l * sol_sto_LP[:b_rt][s,t,scen] for s in 1:length(networkdata[:esrs])) for scen in 1:winddata[:S])))
+    # push!(R2data, ((1/winddata[:S])*(sum(sum(sum(pwl_cost_approx(settings,networkdata,g,0)[:slopes] .* sol_sto_LP[:p_rt][g,:,t,scen]) for g in 1:length(networkdata[:gens])) for scen in 1:winddata[:S]))
+    #               + (1/winddata[:S])*sum(sum(networkdata[:esrs][s].c_l * sol_sto_LP[:b_rt][s,t,scen] for s in 1:length(networkdata[:esrs])) for scen in 1:winddata[:S])))
 end
 flex_payments_data = DataFrame([1:24 sol_sto_SOCP[:λ_R] R1data], [:hours, :Mcc, :R1])
-CSV.write("results/export_to_pgf/FlexibilityPayment/compare_socp_R1.csv", flex_payments_data)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "compare_socp_R1.csv"), flex_payments_data)
 
 ## --- BASIC PLOTS FOR PRICING ANALYSIS --- ###
 #Plotting Flexibility provision - alpha
@@ -273,7 +282,7 @@ p3 = plot!(twinx(),loaddata[:D],
             #ylim=(900,2700)
             )
 plot(p1,p2,p3, layout = (3,1), size=(1000,800))
-savefig("results/plots/10FebMeeting/with_storage_with_bottleneck_50pcRES_dispatch.pdf")
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "with_storage_with_bottleneck_50pcRES_dispatch.pdf"))
 
 #Compare deterministic and stochastic solution in Dispatch
 pyplot()
@@ -293,7 +302,7 @@ p2 = groupedbar(sol_sto_SOCP[:p]',
                 title = "Stochastic Solution",
                 box=:on)
 plot(p1,p2, layout = (2,1), size=(1000,800))
-savefig("results/plots/10FebMeeting/with_storage_with_bottleneck_50pcRES_compare_det_sto.pdf")
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "with_storage_with_bottleneck_50pcRES_compare_det_sto.pdf"))
 #Obtain flexibility payments and flexibility pay rates
 pyplot()
 p1 = groupedbar(flex_gens_payoff[:flex_pay]',
@@ -316,7 +325,7 @@ p2 = groupedbar(flex_gens_payoff[:flex_pay_rate]',
                 title="Flexibility Payment Rate",
                 box=:on)
 plot(p1,p2, layout = (2,1), size=(1000,800))
-savefig("results/plots/10FebMeeting/with_storage_with_bottleneck_50pcRES_flex_rate_payments.pdf")
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "with_storage_with_bottleneck_50pcRES_flex_rate_payments.pdf"))
 
 
 pyplot()
@@ -357,7 +366,7 @@ p4 = groupedbar(sol_sto_SOCP[:b]',
                 box=:on)
 
 plot(p1,p2,p3,p4,layout = (2,2), size=(1000,800))
-savefig("results/plots/10FebMeeting/ESRS_with_bottleneck_50pcRES_flex_rate_payments_dispatch.pdf")
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "ESRS_with_bottleneck_50pcRES_flex_rate_payments_dispatch.pdf"))
 
 
 
@@ -365,16 +374,16 @@ savefig("results/plots/10FebMeeting/ESRS_with_bottleneck_50pcRES_flex_rate_payme
 ## -- Graph 1: Dispatch comparison of three models -- ##
 #System price
 pyplot()
-# rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
-# font0 = Dict(
-#         "font.size" => 10,
-#         #"axes.labelweight" => "bold",
-#         "axes.labelsize" => 10,
-#         "xtick.labelsize" => 8,
-#         "ytick.labelsize" => 8,
-#         "legend.fontsize" => 10,
-# )
-# merge!(rcParams, font0)
+rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
+font0 = Dict(
+        "font.size" => 10,
+        "axes.labelweight" => "bold",
+        "axes.labelsize" => 10,
+        "xtick.labelsize" => 8,
+        "ytick.labelsize" => 8,
+        "legend.fontsize" => 10,
+)
+merge!(rcParams, font0)
 p1 = plot([sol_sto_SOCP[:λ_E] sol_det_LP_DA[:λ_E] sol_sto_LP[:λ_da_sys]], lw=4,
         label=["Mcc" "R1" "R2"],
         xlabel="Hours",
@@ -382,7 +391,7 @@ p1 = plot([sol_sto_SOCP[:λ_E] sol_det_LP_DA[:λ_E] sol_sto_LP[:λ_da_sys]], lw=
         colour= [RGB(7/255,98/255,86/255) RGB(252/255,69/255,45/255) RGB(185/255,199/255,204/255)],
         legend=:bottom, box=:on)
 p2 = plot(loaddata[:D] .- sum(winddata[:ŵ],dims=1)',lw=4,label="Net demand",legend=:topleft)
-#p2 = plot!(twinx(), loaddata[:D],lw=4,colour=[RGB(0,0,0)],label="Load",box = :on, grid = :off)
+p2 = plot!(twinx(), loaddata[:D],lw=4,colour=[RGB(0,0,0)],label="Load",box = :on, grid = :off)
 #Flexible generators
 p3 = groupedbar([sum(sol_sto_SOCP[:p],dims=1); sum(sum(sol_det_LP_DA[:p][:,seg,:] for seg in 1:settings[:Nsteps]), dims=1) ; sum(sum(sol_sto_LP[:p_da][:,seg,:] for seg in 1:settings[:Nsteps]),dims=1) + sum(mean(sum(sol_sto_LP[:p_rt][:,seg,:,:] for seg in 1:settings[:Nsteps]),dims=3)[:,:,1],dims=1)]',
     xlim=[5,15],
@@ -392,15 +401,15 @@ p3 = groupedbar([sum(sol_sto_SOCP[:p],dims=1); sum(sum(sol_det_LP_DA[:p][:,seg,:
     colour= [RGB(7/255,98/255,86/255) RGB(252/255,69/255,45/255) RGB(185/255,199/255,204/255)],
     legend=:topleft)
 
-    # ticklabel = ["10%" "20%" "30%" "40%" "50%" "60%"]
-    # p3 = groupedbar([flex_α flex_γ]./24,
-    #                 bar_position = :stack,
-    #                 barwidth=0.7,
-    #                 xticks=(1:6, ticklabel),
-    #                 label=["Flex Gens" "ESRs"],
-    #                 title="Adjustment policies allocation",
-    #                 legend= :outerright)
-    # savefig("results/plots/fig_flexibility_dispatch.pdf")
+    ticklabel = ["10%" "20%" "30%" "40%" "50%" "60%"]
+    p3 = groupedbar([flex_α flex_γ]./24,
+                    bar_position = :stack,
+                    barwidth=0.7,
+                    xticks=(1:6, ticklabel),
+                    label=["Flex Gens" "ESRs"],
+                    title="Adjustment policies allocation",
+                    legend= :outerright)
+    savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "fig_flexibility_dispatch.pdf"))
 
 #Energy storage
 p4 = groupedbar([sum(sol_sto_SOCP[:b],dims=1); sum(sol_det_LP_DA[:b], dims=1); sum(sol_sto_LP[:b_da],dims=1) + sum(mean(sol_sto_LP[:b_rt],dims=3)[:,:,1],dims=1)]',
@@ -411,17 +420,17 @@ p4 = groupedbar([sum(sol_sto_SOCP[:b],dims=1); sum(sol_det_LP_DA[:b], dims=1); s
     colour= [RGB(7/255,98/255,86/255) RGB(252/255,69/255,45/255) RGB(185/255,199/255,204/255)],
     legend=:none)
 plot(p2,p3,p4,p1, layout = (1,4), size=(1000,200))
-savefig("results/plots/uncongested_dispatch_comparison_LP_SOCP.pdf")
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "uncongested_dispatch_comparison_LP_SOCP.pdf"))
 
 #Export output for plotting in pgfplots
 ELpricesOutput  = DataFrame([1:24 sol_sto_SOCP[:λ_E] sol_det_LP_DA[:λ_E] sol_sto_LP[:λ_da_sys]], [:hours, :Mcc,  :R1, :R2])
 GensOutput      = DataFrame([(1:24)'; sum(sol_sto_SOCP[:p],dims=1); sum(sum(sol_det_LP_DA[:p][:,seg,:] for seg in 1:settings[:Nsteps]), dims=1) ; sum(sum(sol_sto_LP[:p_da][:,seg,:] for seg in 1:settings[:Nsteps]),dims=1) + sum(mean(sum(sol_sto_LP[:p_rt][:,seg,:,:] for seg in 1:settings[:Nsteps]),dims=3)[:,:,1],dims=1)]',  [:hours, :Mcc,  :R1, :R2])
 ESROutput       = DataFrame([(1:24)'; sum(sol_sto_SOCP[:b],dims=1); sum(sol_det_LP_DA[:b], dims=1); sum(sol_sto_LP[:b_da],dims=1) + sum(mean(sol_sto_LP[:b_rt],dims=3)[:,:,1],dims=1)]',  [:hours, :Mcc,  :R1, :R2])
 NetDemandOutput = DataFrame([1:24 loaddata[:D] .- sum(winddata[:ŵ],dims=1)'], [:hours, :netdemand])
-CSV.write("results/export_to_pgf/DispatchFig/elprices_output.csv", ELpricesOutput)
-CSV.write("results/export_to_pgf/DispatchFig/gens_output.csv", GensOutput)
-CSV.write("results/export_to_pgf/DispatchFig/esrs_output.csv", ESROutput)
-CSV.write("results/export_to_pgf/DispatchFig/netdemand_output.csv", NetDemandOutput)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "elprices_output.csv"), ELpricesOutput)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "gens_output.csv"), GensOutput)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "esrs_output.csv"), ESROutput)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "netdemand_output.csv"), NetDemandOutput)
 
 
 ## -- Graph 2: Cost comparison of three models over different renewable penetration shares -- ##
@@ -508,8 +517,8 @@ for i in 1:length(Wcap_vals)
 
 end
 @show cost_wcap
-CSV.write("results/cost_vs_wcap_100scen.csv", cost_wcap)
-#
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "cost_vs_wcap_100scen.csv"), cost_wcap)
+
 
 ## -- Graph: 3 -- SOCP Prices with RES penetration --- ##
 Wcap_vals = 52:52:52*6
@@ -540,9 +549,9 @@ ELPricesMccWithRES = DataFrame([1:24 λ_E_vals[1] λ_E_vals[2] λ_E_vals[3] λ_E
 REPricesMccWithRES = DataFrame([1:24 λ_R_vals[1] λ_R_vals[2] λ_R_vals[3] λ_R_vals[4] λ_R_vals[5] λ_R_vals[6]],
                                 [:hours, :res10, :res20, :res30, :res40, :res50, :res60])
 FlexAllocationWithRES = DataFrame([10:10:60 flex_α flex_γ], [:res, :gens, :esrs])
-CSV.write("results/export_to_pgf/FlexibilityPayment/el_prices_with_res.csv", ELPricesMccWithRES)
-CSV.write("results/export_to_pgf/FlexibilityPayment/re_prices_with_res.csv", REPricesMccWithRES)
-CSV.write("results/export_to_pgf/FlexibilityPayment/flex_alloc_with_res.csv", FlexAllocationWithRES)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "el_prices_with_res.csv"), ELPricesMccWithRES)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "re_prices_with_res.csv"), REPricesMccWithRES)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "flex_alloc_with_res.csv"), FlexAllocationWithRES)
 
 p1 = plot(λ_E_vals, lw=4,
         label=["10%" "20%" "30%" "40%" "50%" "60%"],
@@ -559,10 +568,8 @@ p2 = plot(λ_R_vals, lw=4,
         legend=:outerright)
 
 plot(p1,p2, layout=(2,1))
-savefig("results/plots/fig_price_SOCP_w_windcap.pdf")
-
-o
-savefig("results/plots/fig_flexibility_dispatch.pdf")
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "fig_price_SOCP_w_windcap.pdf"))
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "fig_flexibility_dispatch.pdf"))
 
 ## --- Cost Recovery Plots --- ##
 pyplot()
@@ -593,7 +600,7 @@ p3 = groupedbar(["F1","F1","F2","F2","F3","F3","F4","F4","F5","F5","F6","F6","F7
             colour= [RGB(0,121/255,107/255) RGB(199/255,211/255,215/255)],
             legend=:outerright)
 plot(p1,p2,p3, layout = (3,1))
-savefig("results/plots/fig_cost_recovery_generators.pdf")
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "fig_cost_recovery_generators.pdf"))
 
 
 ## Expt 1: ε vs SOCP cost
@@ -623,11 +630,11 @@ p1 = plot!(twinx(),
           label="viol. prob.",
           colour=RGBA(0,121/255,107/255,0.5),
           box=:on, grid=:off)
-
-# p1 = plot((1 .- ε_vals), cost_violprob[!,:SOCP]./1e3, title="Cost vs. Risk trade-off (σ = $(settings[:σ]))", label="", lw=4, xlabel="Desired confidence level, (1 - ε)", ylabel="Expected cost in k\$")
-# p2 = plot((1 .- ε_vals), cost_violprob[!,:viol_prob], title="Ex-ante constraint violation probability (σ = $(settings[:σ]))", label="", lw=4, xlabel="Desired confidence level, (1 - ε)", ylabel="Violation probability")
-# plot(p1,p2, layout = (2,1))
-savefig("results/plots/fig_cost_violation_prob_sigma.pdf")
+          
+p1 = plot((1 .- ε_vals), cost_violprob[!,:SOCP]./1e3, title="Cost vs. Risk trade-off (σ = $(settings[:σ]))", label="", lw=4, xlabel="Desired confidence level, (1 - ε)", ylabel="Expected cost in k\$")
+p2 = plot((1 .- ε_vals), cost_violprob[!,:viol_prob], title="Ex-ante constraint violation probability (σ = $(settings[:σ]))", label="", lw=4, xlabel="Desired confidence level, (1 - ε)", ylabel="Violation probability")
+plot(p1,p2, layout = (2,1))
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "fig_cost_violation_prob_sigma.pdf"))
 
 
 ## Expt 3: SOCP vs LP : Computation time
@@ -669,8 +676,8 @@ p2 = plot(["10","50","100","200"],
         xlabel="# of scenarios", ylabel = "Expected cost (k\$)",
         lw=4)
 plot(p1,p2, layout = (1,2))
-CSV.write("results/cost_computation_vs_scenarios.csv", comp_cost)
-savefig("results/plots/fig_cost_computation_vs_scenarios.pdf")
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "cost_computation_vs_scenarios.csv"), comp_cost)
+savefig(joinpath(RESULTS_PLOTS_DIR_NAME, "fig_cost_computation_vs_scenarios.pdf"))
 
 
 
@@ -716,11 +723,11 @@ oos_infeas = 0
 cost_rec_flag_LP = 0
 for scen in 1:oosdata[:S]
     sol_realtime_R1_LP_scen          = run_det_LP_oos_reopt(settings,networkdata,winddata,loaddata,sol_det_LP_DA,oosdata,scen,rt_premium)
-    #cost_recovery_check           = check_cost_rec_scen(settings,networkdata,sol_sto_LP,sol_realtime_R1_LP_scen)
-    # if(length(findall(x->x<-0.1, cost_recovery_check[:Pro_gen])) > 0)
-    # #     @warn("Cost recovery failed for scenario -->$(scen)")
-    #      cost_rec_flag_LP +=1
-    # end
+    cost_recovery_check           = check_cost_rec_scen(settings,networkdata,sol_sto_LP,sol_realtime_R1_LP_scen)
+    if(length(findall(x->x<-0.1, cost_recovery_check[:Pro_gen])) > 0)
+         @warn("Cost recovery failed for scenario -->$(scen)")
+         cost_rec_flag_LP +=1
+    end
     if (sol_realtime_R1_LP_scen[:status] ==  MOI.OPTIMAL)
         push!(sol_realtime_R1_LP_scen_res, [scen, sol_realtime_R1_LP_scen[:status], sol_realtime_R1_LP_scen[:solvetime], round(sol_realtime_R1_LP_scen[:cost],digits=4) + sol_det_LP_DA[:cost_res_gen] + sol_det_LP_DA[:cost_res_esr], round(sum(sol_realtime_R1_LP_scen[:p_shed]),digits=4), round(sum(sol_realtime_R1_LP_scen[:w_spill]),digits=4)])
         push!(oos_res_df,["R1", netconfig, rt_premium, scen, round(sol_realtime_R1_LP_scen[:cost],digits=4) + sol_det_LP_DA[:cost_res_gen] + sol_det_LP_DA[:cost_res_esr]])
@@ -745,7 +752,7 @@ for scen in 1:oosdata[:S]
     sol_realtime_LP_scen          = run_sto_LP_oos_reopt(settings,networkdata,winddata,loaddata,sol_sto_LP,oosdata,scen,rt_premium)
     cost_recovery_check           = check_cost_rec_scen(settings,networkdata,sol_sto_LP,sol_realtime_LP_scen)
     if(length(findall(x->x<-0.1, cost_recovery_check[:Pro_gen])) > 0)
-    #     @warn("Cost recovery failed for scenario -->$(scen)")
+         @warn("Cost recovery failed for scenario -->$(scen)")
          cost_rec_flag_LP +=1
     end
     if (sol_realtime_LP_scen[:status] ==  MOI.OPTIMAL)
@@ -762,6 +769,5 @@ println("Increase over in-sample cost LP => $(100*(mean(sol_realtime_R2_LP_scen_
 println("Probability of load shed => $(100*(sum(sol_realtime_R2_LP_scen_res[!, :p_shed] .> 0)/settings[:TDsize]))%, Average load shed => $(100*sum(sol_realtime_R2_LP_scen_res[!, :p_shed])/(500*sum(loaddata[:D])))%")
 println("Probability of wind spilled => $(100*(sum(sol_realtime_R2_LP_scen_res[!, :w_spill] .> 0)/settings[:TDsize]))%, Average wind spilled => $(100*sum(sol_realtime_R2_LP_scen_res[!, :w_spill])/(500*sum(winddata[:ŵ])))%")
 
-
 @show oos_res_df
-CSV.write("results/new_oos_cost_comparison_500scens.csv", oos_res_df)
+CSV.write(joinpath(RESULTS_DATA_DIR_NAME, "new_oos_cost_comparison_500scens.csv"), oos_res_df)

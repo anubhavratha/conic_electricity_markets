@@ -82,11 +82,6 @@ function process_gen_outcomes(settings,networkdata,sol)
             Rev_gen[g] = round(sol[:Π][:Π_E][networkdata[:gens][g].node,:]'sol[:p][g,:] + sol[:Π][:Π_R][networkdata[:gens][g].node,:]'sol[:α][g,:], digits=4)
             Pro_gen[g] = round(Rev_gen[g] - Cos_gen[g], digits=2)
         end
-    # elseif :cost_res_gen in keys(sol)
-    #     for g in 1:Ng
-    #         Cos_gen[g] =
-    #         Rev_gen[g] =
-    #         Pro_gen[g] =
     elseif :p_da in keys(sol)
         for g in 1:Ng
             Cos_gen[g] = (sum(sol[:p_da][g,seg,:] for seg in 1:settings[:Nsteps])' * diagm(ones(settings[:T]) * networkdata[:gens][g].q) * sum(sol[:p_da][g,seg,:] for seg in 1:settings[:Nsteps]) + (ones(settings[:T]) * networkdata[:gens][g].c)' * sum(sol[:p_da][g,seg,:] for seg in 1:settings[:Nsteps])
