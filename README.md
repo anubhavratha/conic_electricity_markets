@@ -9,6 +9,10 @@ author = {Anubhav Ratha and Pierre Pinson and Hélène {Le Cadre} and Ana Virag 
 journal = {European Journal of Operational Research}, volume = {309}, number = {2}, pages = {762-783}, year = {2023}, issn = {0377-2217}, doi = {https://doi.org/10.1016/j.ejor.2022.12.025}}
 
 
+A chance-constrained conic electricity market clearing problem is solved as a central planner problem. It is then benchmarked with prevalent linear market clearing problems. Further details on the model parameters and the reformulation of the chance constraints can be found in the paper. The figure below shows the energy prices at various nodes of the 24-bus electricity system considered in the case study.
+<img width="381" alt="Prices" src="https://user-images.githubusercontent.com/19344128/172192699-5064902d-8b1b-4002-87a1-5203a66cf906.png">
+
+
 ## Setup:
 
 The optimization models were implemented in [Julia](https://julialang.org) (v.1.6) using [JuMP](https://github.com/JuliaOpt/JuMP.jl) modeling language for mathematical optimization. The conic electricity market clearing problem is solved using the [Mosek](https://www.mosek.com) solver, which requires a license (free of charge for academic use). Please refer to [JuMP documentation](https://jump.dev/JuMP.jl/stable/installation/#Supported-solvers) on how to set up the solver.
@@ -20,13 +24,7 @@ julia> ]
 pkg> activate .
 pkg> instantiate
 ```
-
+To reproduce the results, run the following in the ```julia``` terminal:
 ```
 julia> include("main.jl")
 ```
-
-A chance-constrained conic electricity market clearing problem solved as a central planner problem. Further details on the model parameters and the reformulation of the chance constraints can be found in the manuscript.The figure below shows the energy prices at various nodes of the 24-bus electricity system considered in the case study.
-
-<img width="381" alt="Prices" src="https://user-images.githubusercontent.com/19344128/172192699-5064902d-8b1b-4002-87a1-5203a66cf906.png">
-
-
