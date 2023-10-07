@@ -27,3 +27,5 @@ To reproduce the results, run the following in the ```julia``` terminal:
 ```
 julia> include("main.jl")
 ```
+
+For questions or comments, drop me a message here: [anubhav.rath@gmail.com](mailto:anubhav.rath@gmail.com).
