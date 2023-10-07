@@ -191,7 +191,6 @@ CSV.write("results/export_to_pgf/FlexibilityPayment/socp_esr_flex_payrate_no_bot
 
 
 settings[:bottleneck]   = true
-
 settings[:det]      = true
 sol_det_SOCP        = sto_socp_mc(settings,networkdata,winddata,loaddata)
 println("Deterministic SOCP Cost => ", sol_det_SOCP[:cost]/1e3)

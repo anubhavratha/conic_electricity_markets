@@ -130,7 +130,7 @@ function sto_lp_mc(settings,networkdata,winddata,loaddata)
     :cost_flex     => (sum((1/winddata[:S])*(sum(sum(sum(pwl_cost_approx(settings,networkdata,g,0)[:slopes] .* JuMP.value.(p_rt[g,:,t,scen])) for g in 1:length(networkdata[:gens])) for t in 1:settings[:T])
                             + sum((ones(settings[:T]) * networkdata[:esrs][s].c_l)'JuMP.value.(b_rt[s,:,scen]) for s in 1:length(networkdata[:esrs]))
                                     + sum((C_shed*ones(settings[:T]))'JuMP.value.(p_shed[b,:,scen]) for b in 1:length(networkdata[:buses]))) for scen in 1:winddata[:S])),
-    :solvetime     => MOI.get(m, MOI.SolveTime()),
+    :solvetime     => JuMP.MOI.get(m, JuMP.MOI.SolveTimeSec()),
     :model         => m)
     return solution
 end
@@ -208,7 +208,7 @@ function run_sto_LP_oos_reopt(settings,networkdata,winddata,loaddata,sol_sto_LP,
     :p_shed     => JuMP.value.(p_shed),
     :w_spill    => JuMP.value.(w_spill),
     :status     => termination_status(m),
-    :solvetime => 0.0,
+    :solvetime  => JuMP.MOI.get(m, JuMP.MOI.SolveTimeSec()),
     :da_model   => "R2",
     )
     return solution

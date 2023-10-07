@@ -96,7 +96,7 @@ function det_lp_da_mc(settings,networkdata,winddata,loaddata)
     :cost           => JuMP.objective_value.(m),
     :cost_res_gen   => sum((ones(settings[:T])*networkdata[:gens][g].c_r)' * JuMP.value.(r_p[g,:]) for g in 1:length(networkdata[:gens])),
     :cost_res_esr   => sum((ones(settings[:T])*networkdata[:esrs][s].c_r)' * JuMP.value.(r_b[s,:]) for s in 1:length(networkdata[:esrs])),
-    :solvetime      => MOI.get(m, MOI.SolveTime()),
+    :solvetime      => JuMP.MOI.get(m, JuMP.MOI.SolveTimeSec()),
     :model          => m)
     return solution
 end
@@ -155,7 +155,7 @@ function det_lp_rt_mc(settings,networkdata,winddata,loaddata,sol_det_LP_DA,scen)
     :p_shed     => JuMP.value.(p_shed),
     :w_spill    => JuMP.value.(w_spill),
     :status     => termination_status(m),
-    :solvetime  => MOI.get(m, MOI.SolveTime())
+    :solvetime  => JuMP.MOI.get(m, JuMP.MOI.SolveTimeSec()),
     )
     return solution
 end
@@ -232,7 +232,7 @@ function run_det_LP_oos_reopt(settings,networkdata,winddata,loaddata,sol_det_LP_
     :p_shed     => JuMP.value.(p_shed),
     :w_spill    => JuMP.value.(w_spill),
     :status     => termination_status(m),
-    :solvetime => 0.0,
+    :solvetime  => JuMP.MOI.get(m, JuMP.MOI.SolveTimeSec()),
     :da_model   => "R1",
     )
     return solution

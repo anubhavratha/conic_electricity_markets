@@ -110,13 +110,12 @@ function sto_socp_mc(settings,networkdata,winddata,loaddata)
     settings[:det] == true ? :λ_R => 0 : :λ_R        => JuMP.dual.(λ_r),
     :ρ          => JuMP.dual.(ρ),
     :cost       => JuMP.objective_value.(m),
-    #:cost_ener  => sum(JuMP.value.(z_p)) + sum(sum(networkdata[:gens][g].c * JuMP.value.(p[g,t]) for g=1:Ng) for t=1:settings[:T]) + sum(sum(networkdata[:esrs][s].c_l * JuMP.value.(b[s,t]) for s=1:Ns) for t=1:settings[:T]),
-    #:cost_flex  => sum(JuMP.value.(z_α)),
+    :cost_ener  => sum(JuMP.value.(z_p)) + sum(sum(networkdata[:gens][g].c * JuMP.value.(p[g,t]) for g=1:Ng) for t=1:settings[:T]) + sum(sum(networkdata[:esrs][s].c_l * JuMP.value.(b[s,t]) for s=1:Ns) for t=1:settings[:T]),
+    :cost_flex  => sum(JuMP.value.(z_α)),
     :ŵ          => winddata[:ŵ],
     :D          => loaddata[:D],
-    :solvetime => 0.0,
-    #:solvetime  => MOI.get(m, MOI.SolveTime()),
-    #:model      => m
+    :solvetime  => JuMP.MOI.get(m, JuMP.MOI.SolveTimeSec()),
+    :model      => m
     )
     return solution
 end
@@ -314,7 +313,7 @@ function run_sto_SOCP_oos_reopt(settings,networkdata,winddata,sol_sto_SOCP,oosda
     :p_shed     => JuMP.value.(p_shed),
     :w_spill    => JuMP.value.(w_spill),
     :status     => termination_status(m),
-    :solvetime  => MOI.get(m, MOI.SolveTime()),
+    :solvetime  => JuMP.MOI.get(m, JuMP.MOI.SolveTimeSec()),
     :da_model   => "Mcc",
     )
     return solution
