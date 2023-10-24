@@ -75,18 +75,6 @@ function sto_socp_mc(settings,networkdata,winddata,loaddata)
         end
     end
 
-    # ρ = Array{JuMP.ConstraintRef, 2}(undef, length(networkdata[:lines])*2, settings[:T])
-    # for t in 1:settings[:T]
-    #     awinline = [networkdata[:Ψ]*(networkdata[:Cgens]*α[:,t]*ones(1,Nw) + networkdata[:Cesr]*γ[:,t]*ones(1,Nw) - winddata[:Cwind]);
-    #               - networkdata[:Ψ]*(networkdata[:Cgens]*α[:,t]*ones(1,Nw) + networkdata[:Cesr]*γ[:,t]*ones(1,Nw) - winddata[:Cwind])]
-    #     bwinline = [networkdata[:f̅] + networkdata[:Ψ]*(loaddata[:node_loads][:,t] - networkdata[:Cgens]*p[:,t] - networkdata[:Cesr]*b[:,t] - winddata[:Cwind]*winddata[:ŵ][:,t]);
-    #                networkdata[:f̅] - networkdata[:Ψ]*(loaddata[:node_loads][:,t] - networkdata[:Cgens]*p[:,t] - networkdata[:Cesr]*b[:,t] - winddata[:Cwind]*winddata[:ŵ][:,t])]
-    #    for l = 1:length(networkdata[:lines])*2
-    #       ρ[l,t] = @constraint(m, [bwinline[l] ; Φ(settings,networkdata) * returnblks(winddata[:Σ],t,Nw)*(awinline[l,:])] in SecondOrderCone())
-    #       set_name(ρ[l,t], "ρ_l$(l)_t$(t)")
-    #    end
-    # end
-
     # solve
     @time optimize!(m)
     status = termination_status(m)
